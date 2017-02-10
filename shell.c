@@ -11,16 +11,18 @@ char *getUserInput(char *line);
 char **getArgsFromInput(char *line);
 int hasNotEnded(char *line, int bufSize);
 void checkBufferErrorPrintAndExit(char *buf);
+void execute(char **args);
+int launchProgram(char **args);
 
 int main() {
     char *line = NULL;
     char **args = NULL; 
     
     while (1) {
-        printf(">");
+        printf("> ");
         line = getUserInput(line);
         args = getArgsFromInput(line);
-        //execute(args);
+        execute(args);
 
         free(line);
         free(args);
@@ -67,6 +69,28 @@ char **getArgsFromInput(char *line) {
         }
     }
     return tokens;
+}
+
+void execute(char **args) {
+    pid_t pid, wpid;
+    int status;
+
+    pid = fork();
+    if (pid == 0) { // Child process
+        printf("Parent id: %d\n", getppid());
+        launchProgram(args);
+    } else {        // Parent process 
+        printf("Loading new process with id %d\n", pid);
+        do {
+            wpid = waitpid(pid, &status, WUNTRACED);
+        } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+    }
+}
+
+int launchProgram(char **args) {
+    char **param = args + 1;
+    printf("Launch Program: %s\n", param[0]);
+    execvp(args[0],param);
 }
 
 int hasNotEnded(char *line, int bufSize) {
