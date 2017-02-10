@@ -4,22 +4,22 @@
 #include <stdlib.h>
 
 #define INPUT_BUF_SIZE 1024
+#define TOKEN_BUF_SIZE 64
 #define ALLOC_ERR_MSG "Allocation Error\n"
-
+#define TOKEN_DELIM " "
 char *getUserInput(char *line);
-//char **getArgsFromInput(char *line);
+char **getArgsFromInput(char *line);
 int hasNotEnded(char *line, int bufSize);
-void checkBufferErrorPrintAndExit();
+void checkBufferErrorPrintAndExit(char *buf);
 
-int main(int argc, char *args[]) {
+int main() {
     char *line = NULL;
-    //char **args = NULL; 
+    char **args = NULL; 
     
     while (1) {
         printf(">");
         line = getUserInput(line);
-        printf(line);
-        //args = getArgsFromInput(line);
+        args = getArgsFromInput(line);
         //execute(args);
 
         free(line);
@@ -45,6 +45,28 @@ char *getUserInput(char *line) {
         }
     }
     return line;
+}
+
+char **getArgsFromInput(char *line) {
+    char **tokens = malloc(sizeof(char*) * TOKEN_BUF_SIZE);
+    char *token;
+    int tokenSize = TOKEN_BUF_SIZE;
+    int argsCounter = 0;
+    checkBufferErrorPrintAndExit((char*)tokens);
+    
+    token = strtok(line, TOKEN_DELIM);
+    while (token != NULL) {
+        tokens[argsCounter] = token;
+        argsCounter += 1;
+
+        token = strtok(NULL, TOKEN_DELIM);
+        if (argsCounter >= tokenSize) {
+            tokenSize *= 2;
+            tokens = realloc(tokens, sizeof(char*) * tokenSize);
+            checkBufferErrorPrintAndExit(line);
+        }
+    }
+    return tokens;
 }
 
 int hasNotEnded(char *line, int bufSize) {
