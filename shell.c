@@ -23,10 +23,10 @@ int main() {
         //execute(args);
 
         free(line);
-        //free(args);
+        free(args);
 
         line = NULL;
-        //args = NULL;
+        args = NULL;
     }
 }
 
