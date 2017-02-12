@@ -2,11 +2,14 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #define INPUT_BUF_SIZE 1024
 #define TOKEN_BUF_SIZE 64
 #define ALLOC_ERR_MSG "Allocation Error\n"
 #define TOKEN_DELIM " "
+
 char *getUserInput(char *line);
 char **getArgsFromInput(char *line);
 int hasNotEnded(char *line, int bufSize);
@@ -16,8 +19,8 @@ int launchProgram(char **args);
 
 int main() {
     char *line = NULL;
-    char **args = NULL; 
-    
+    char **args = NULL;
+
     while (1) {
         printf("> ");
         line = getUserInput(line);
@@ -30,6 +33,7 @@ int main() {
         line = NULL;
         args = NULL;
     }
+    return 0;
 }
 
 char *getUserInput(char *line) {
@@ -55,7 +59,7 @@ char **getArgsFromInput(char *line) {
     int tokenSize = TOKEN_BUF_SIZE;
     int argsCounter = 0;
     checkBufferErrorPrintAndExit((char*)tokens);
-    
+
     token = strtok(line, TOKEN_DELIM);
     while (token != NULL) {
         tokens[argsCounter] = token;
@@ -79,17 +83,23 @@ void execute(char **args) {
     if (pid == 0) { // Child process
         printf("Parent id: %d\n", getppid());
         launchProgram(args);
-    } else {        // Parent process 
+    } else if (pid > 0) {        // Parent process
         printf("Loading new process with id %d\n", pid);
         do {
             wpid = waitpid(pid, &status, WUNTRACED);
         } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+    } else {
+        perror("Fork failed");
+        exit(1);
     }
 }
 
 int launchProgram(char **args) {
     char **param = args + 1;
-    printf("Launch Program: %s\n", param[0]);
+    if (sizeof(args) == 1) {
+        param = NULL;
+    } 
+    printf("Launch Program: %s\n", args[0]);
     execvp(args[0],param);
 }
 
