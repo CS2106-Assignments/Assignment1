@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <errno.h>
 
 #define INPUT_BUF_SIZE 1024
 #define TOKEN_BUF_SIZE 64
@@ -83,14 +84,14 @@ void execute(char **args) {
     if (pid == 0) { // Child process
         printf("Parent id: %d\n", getppid());
         launchProgram(args);
-    } else if (pid > 0) {        // Parent process
+    } else if (pid > 0) { // Parent process
         printf("Loading new process with id %d\n", pid);
         do {
             wpid = waitpid(pid, &status, WUNTRACED);
         } while (!WIFEXITED(status) && !WIFSIGNALED(status));
     } else {
         perror("Fork failed");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -99,8 +100,11 @@ int launchProgram(char **args) {
     if (sizeof(args) == 1) {
         param = NULL;
     } 
-    printf("Launch Program: %s\n", args[0]);
-    execvp(args[0],param);
+    //printf("Launch Program: %s\n", args[0]);
+    execvp(args[0], args);
+    if(errno == EACCES) {
+        perror("Shell error : No such file or directory\n");
+    }
 }
 
 int hasNotEnded(char *line, int bufSize) {
@@ -121,6 +125,6 @@ void checkBufferErrorPrintAndExit(char *buf) {
     if (buf) {
         return;
     }
-    fprintf(stderr, ALLOC_ERR_MSG);
+    perror(ALLOC_ERR_MSG);
     exit(EXIT_FAILURE);
 }
