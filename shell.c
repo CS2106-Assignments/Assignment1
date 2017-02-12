@@ -10,6 +10,7 @@
 #define TOKEN_BUF_SIZE 64
 #define ALLOC_ERR_MSG "Allocation Error\n"
 #define TOKEN_DELIM " "
+#define SHELL_ERR_MSG "Shell error: "
 
 char *getUserInput(char *line);
 char **getArgsFromInput(char *line);
@@ -59,8 +60,8 @@ char **getArgsFromInput(char *line) {
     char *token;
     int tokenSize = TOKEN_BUF_SIZE;
     int argsCounter = 0;
+    
     checkBufferErrorPrintAndExit((char*)tokens);
-
     token = strtok(line, TOKEN_DELIM);
     while (token != NULL) {
         tokens[argsCounter] = token;
@@ -73,6 +74,7 @@ char **getArgsFromInput(char *line) {
             checkBufferErrorPrintAndExit(line);
         }
     }
+    tokens[argsCounter] = NULL;
     return tokens;
 }
 
@@ -82,26 +84,24 @@ void execute(char **args) {
 
     pid = fork();
     if (pid == 0) { // Child process
-        printf("Parent id: %d\n", getppid());
+        printf("> Parent id: %d\n", getppid());
         launchProgram(args);
     } else if (pid > 0) { // Parent process
         printf("Loading new process with id %d\n", pid);
         do {
             wpid = waitpid(pid, &status, WUNTRACED);
+            printf("\n");
         } while (!WIFEXITED(status) && !WIFSIGNALED(status));
     } else {
-        perror("Fork failed");
+        perror(SHELL_ERR_MSG);
         exit(EXIT_FAILURE);
     }
 }
 
 int launchProgram(char **args) {
-    char **param = args + 1;
-    if (sizeof(args) == 1) {
-        param = NULL;
-    } 
     execvp(args[0], args);    
-    perror("Shell error");
+    perror(SHELL_ERR_MSG);
+    exit(EXIT_FAILURE);
 }
 
 int hasNotEnded(char *line, int bufSize) {
