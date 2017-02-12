@@ -2,11 +2,16 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <errno.h>
 
 #define INPUT_BUF_SIZE 1024
 #define TOKEN_BUF_SIZE 64
 #define ALLOC_ERR_MSG "Allocation Error\n"
 #define TOKEN_DELIM " "
+#define SHELL_ERR_MSG "Shell error: "
+
 char *getUserInput(char *line);
 char **getArgsFromInput(char *line);
 int hasNotEnded(char *line, int bufSize);
@@ -16,8 +21,8 @@ int launchProgram(char **args);
 
 int main() {
     char *line = NULL;
-    char **args = NULL; 
-    
+    char **args = NULL;
+
     while (1) {
         printf("> ");
         line = getUserInput(line);
@@ -30,6 +35,7 @@ int main() {
         line = NULL;
         args = NULL;
     }
+    return 0;
 }
 
 char *getUserInput(char *line) {
@@ -54,8 +60,8 @@ char **getArgsFromInput(char *line) {
     char *token;
     int tokenSize = TOKEN_BUF_SIZE;
     int argsCounter = 0;
-    checkBufferErrorPrintAndExit((char*)tokens);
     
+    checkBufferErrorPrintAndExit((char*)tokens);
     token = strtok(line, TOKEN_DELIM);
     while (token != NULL) {
         tokens[argsCounter] = token;
@@ -68,6 +74,7 @@ char **getArgsFromInput(char *line) {
             checkBufferErrorPrintAndExit(line);
         }
     }
+    tokens[argsCounter] = NULL;
     return tokens;
 }
 
@@ -77,20 +84,24 @@ void execute(char **args) {
 
     pid = fork();
     if (pid == 0) { // Child process
-        printf("Parent id: %d\n", getppid());
+        printf("> Parent id: %d\n", getppid());
         launchProgram(args);
-    } else {        // Parent process 
+    } else if (pid > 0) { // Parent process
         printf("Loading new process with id %d\n", pid);
         do {
             wpid = waitpid(pid, &status, WUNTRACED);
+            printf("\n");
         } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+    } else {
+        perror(SHELL_ERR_MSG);
+        exit(EXIT_FAILURE);
     }
 }
 
 int launchProgram(char **args) {
-    char **param = args + 1;
-    printf("Launch Program: %s\n", param[0]);
-    execvp(args[0],param);
+    execvp(args[0], args);    
+    perror(SHELL_ERR_MSG);
+    exit(EXIT_FAILURE);
 }
 
 int hasNotEnded(char *line, int bufSize) {
@@ -111,6 +122,6 @@ void checkBufferErrorPrintAndExit(char *buf) {
     if (buf) {
         return;
     }
-    fprintf(stderr, ALLOC_ERR_MSG);
+    perror(ALLOC_ERR_MSG);
     exit(EXIT_FAILURE);
 }
