@@ -100,11 +100,8 @@ int launchProgram(char **args) {
     if (sizeof(args) == 1) {
         param = NULL;
     } 
-    //printf("Launch Program: %s\n", args[0]);
-    execvp(args[0], args);
-    if(errno == EACCES) {
-        perror("Shell error : No such file or directory\n");
-    }
+    execvp(args[0], args);    
+    perror("Shell error");
 }
 
 int hasNotEnded(char *line, int bufSize) {
