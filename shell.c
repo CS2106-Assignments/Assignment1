@@ -18,6 +18,7 @@ int hasNotEnded(char *line, int bufSize);
 void checkBufferErrorPrintAndExit(char *buf);
 void execute(char **args);
 int launchProgram(char **args);
+void freeVariables(char *line, char **args);
 
 int main() {
     char *line = NULL;
@@ -29,15 +30,29 @@ int main() {
         args = getArgsFromInput(line);
         execute(args);
 
-        free(line);
-        free(args);
-
-        line = NULL;
-        args = NULL;
+        freeVariables(line, args);
     }
     return 0;
 }
 
+/**
+ * Frees variables that have been allocated memory.
+ * 
+ * param line is a string representation of the file name.
+ * param args is an array of string.
+ */
+void freeVariables(char *line, char **args) {
+    free(line);
+    free(args);
+
+    line = NULL;
+    args = NULL;
+}
+
+/**
+ * Obtains user input in a line.
+ * If the buffer is not big enough, increase it by 2 times and realloc memory.
+ */
 char *getUserInput(char *line) {
     int bufSize = INPUT_BUF_SIZE;
     line = malloc(sizeof(*line) * bufSize);
@@ -55,6 +70,12 @@ char *getUserInput(char *line) {
     return line;
 }
 
+/**
+ * Gets arguments from the line of text.
+ * Arguments are delimetered by TOKEN_DELIM which is just " ".
+ * If token buffer is not big enough, increase it by 2 times and realloc memory.
+ * The string array is NULL terminated.
+ */
 char **getArgsFromInput(char *line) {
     char **tokens = malloc(sizeof(char*) * TOKEN_BUF_SIZE);
     char *token;
@@ -78,6 +99,15 @@ char **getArgsFromInput(char *line) {
     return tokens;
 }
 
+/**
+ * Executes the command using the file name and the arguments.
+ * Forks a new process to handle the executing of the command.
+ * Parent will wait for child to be terminated to proceed.
+ * Prints parent id in child process.
+ * Prints child id in parent process.
+ *
+ * If error occurs, display SHELL_ERR_MSG.
+ */
 void execute(char **args) {
     pid_t pid, wpid;
     int status;
@@ -90,23 +120,35 @@ void execute(char **args) {
         printf("Loading new process with id %d\n", pid);
         do {
             wpid = waitpid(pid, &status, WUNTRACED);
-            printf("\n");
         } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+        printf("\n");
     } else {
         perror(SHELL_ERR_MSG);
         exit(EXIT_FAILURE);
     }
 }
 
+/**
+ * Launches the child program using the child name and other arguments.
+ *
+ * If error occurs, display SHELL_ERR_MSG.
+ */
 int launchProgram(char **args) {
-    execvp(args[0], args);    
-    perror(SHELL_ERR_MSG);
-    exit(EXIT_FAILURE);
+    if (execvp(args[0], args) == -1) {
+        perror(SHELL_ERR_MSG);
+        exit(EXIT_FAILURE);
+    }
+    exit(EXIT_SUCCESS);
 }
 
+/**
+ * Util method to check if there is more lines to be read.
+ * Returns true if there are more characters to read
+ * Returns false if there is an EOF or end line.
+ */
 int hasNotEnded(char *line, int bufSize) {
     int position = 0;
-    while(1) {
+    while (1) {
         if (line[position] == EOF || line[position] == '\n') {
             line[position] = '\0';
             return 0;
@@ -118,6 +160,9 @@ int hasNotEnded(char *line, int bufSize) {
     }
 }
 
+/**
+ * Displays error when there is an issure with allocation memory
+ */
 void checkBufferErrorPrintAndExit(char *buf) {
     if (buf) {
         return;
