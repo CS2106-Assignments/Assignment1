@@ -11,36 +11,50 @@
 #define ALLOC_ERR_MSG "Allocation Error\n"
 #define TOKEN_DELIM " "
 #define SHELL_ERR_MSG "Shell error: "
+#define SHELL_PATH "SHELL_PATH="
 
 char *getUserInput(char *line);
 char **getArgsFromInput(char *line);
 int hasNotEnded(char *line, int bufSize);
 void checkBufferErrorPrintAndExit(char *buf);
-void execute(char **args);
-int launchProgram(char **args);
+void execute(char **args, char *env[]);
+char **appendShellPathToEnvVar(char *filename, char *env[]); 
+int launchProgram(char **args, char *env[]);
+void freeVariables(char *line, char **args);
 
-int main() {
+int main(int argc, char *args[], char *env[]) {
     char *line = NULL;
-    char **args = NULL;
-
-    char *completePath = getenv("PATH");
-    setenv("SHELL_PATH", completePath);
-
+    char **lineArgs = NULL;
+  
     while (1) {
         printf("> ");
         line = getUserInput(line);
         args = getArgsFromInput(line);
-        execute(args);
+        execute(args, env);
 
-        free(line);
-        free(args);
-
-        line = NULL;
-        args = NULL;
+        freeVariables(line, lineArgs);
     }
     return 0;
 }
 
+/**
+ * Frees variables that have been allocated memory.
+ * 
+ * param line is a string representation of the file name.
+ * param args is an array of string.
+ */
+void freeVariables(char *line, char **args) {
+    free(line);
+    free(args);
+
+    line = NULL;
+    args = NULL;
+}
+
+/**
+ * Obtains user input in a line.
+ * If the buffer is not big enough, increase it by 2 times and realloc memory.
+ */
 char *getUserInput(char *line) {
     int bufSize = INPUT_BUF_SIZE;
     line = malloc(sizeof(*line) * bufSize);
@@ -58,6 +72,12 @@ char *getUserInput(char *line) {
     return line;
 }
 
+/**
+ * Gets arguments from the line of text.
+ * Arguments are delimetered by TOKEN_DELIM which is just " ".
+ * If token buffer is not big enough, increase it by 2 times and realloc memory.
+ * The string array is NULL terminated.
+ */
 char **getArgsFromInput(char *line) {
     char **tokens = malloc(sizeof(char*) * TOKEN_BUF_SIZE);
     char *token;
@@ -81,35 +101,81 @@ char **getArgsFromInput(char *line) {
     return tokens;
 }
 
-void execute(char **args) {
+/**
+ * Executes the command using the file name and the arguments.
+ * Forks a new process to handle the executing of the command.
+ * Parent will wait for child to be terminated to proceed.
+ * Prints parent id in child process.
+ * Prints child id in parent process.
+ *
+ * If error occurs, display SHELL_ERR_MSG.
+ */
+void execute(char **args, char *env[]) {
     pid_t pid, wpid;
     int status;
 
+    char **newEnv = appendShellPathToEnvVar(args[0], env);
     pid = fork();
     if (pid == 0) { // Child process
         printf("> Parent id: %d\n", getppid());
-        launchProgram(args);
+        launchProgram(args, env);
     } else if (pid > 0) { // Parent process
         printf("Loading new process with id %d\n", pid);
         do {
             wpid = waitpid(pid, &status, WUNTRACED);
-            printf("\n");
         } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+        printf("\n");
     } else {
         perror(SHELL_ERR_MSG);
         exit(EXIT_FAILURE);
     }
 }
 
-int launchProgram(char **args) {
-    execvp(args[0], args);    
-    perror(SHELL_ERR_MSG);
-    exit(EXIT_FAILURE);
+char **appendShellPathToEnvVar(char* filename, char *env[]) {
+    int totalElementSize = sizeof((char**)env);
+    totalElementSize += 1;
+
+    char **newEnv = malloc(sizeof(char *) * totalElementSize);
+    char *curWorkingDir = get_current_dir_name();
+    int lenOfDirName = strlen(curWorkingDir);
+    int lenOfFileName = strlen(filename);
+    int totalShellPathLen = lenOfFileName + 11 + 1;
+    char *shellPathVar = malloc(sizeof(char *) * totalShellPathLen);
+    strcpy(shellPathVar, SHELL_PATH);
+    strcat(shellPathVar, curWorkingDir);
+
+    newEnv = env;
+    newEnv[totalElementSize-1] = shellPathVar;
+    newEnv[totalElementSize] = NULL;
+    return newEnv;
 }
 
+/**
+ * Launches the child program using the child name and other arguments.
+ *
+ * If error occurs, display SHELL_ERR_MSG.
+ */
+int launchProgram(char **args, char *env[]) {
+    char **newEnv = appendShellPathToEnvVar(args[0], env);
+    if (execvpe(args[0], args, newEnv) == -1) {
+        perror(SHELL_ERR_MSG);
+        free(newEnv);
+        newEnv = NULL;
+        exit(EXIT_FAILURE);
+    }
+    free(newEnv);
+    newEnv = NULL;
+    exit(EXIT_SUCCESS);
+}
+
+/**
+ * Util method to check if there is more lines to be read.
+ * Returns true if there are more characters to read
+ * Returns false if there is an EOF or end line.
+ */
 int hasNotEnded(char *line, int bufSize) {
     int position = 0;
-    while(1) {
+    while (1) {
         if (line[position] == EOF || line[position] == '\n') {
             line[position] = '\0';
             return 0;
@@ -121,6 +187,9 @@ int hasNotEnded(char *line, int bufSize) {
     }
 }
 
+/**
+ * Displays error when there is an issure with allocation memory
+ */
 void checkBufferErrorPrintAndExit(char *buf) {
     if (buf) {
         return;
