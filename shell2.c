@@ -1,3 +1,12 @@
+/*
+ * Name: Yeo Xiang Guang Brandon
+ * Matric: A0135782Y
+ *
+ * Name:
+ * Matric:
+ */
+
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -114,7 +123,6 @@ void execute(char **args, char *env[]) {
     pid_t pid, wpid;
     int status;
 
-    char **newEnv = appendShellPathToEnvVar(args[0], env);
     pid = fork();
     if (pid == 0) { // Child process
         printf("> Parent id: %d\n", getppid());
@@ -131,6 +139,11 @@ void execute(char **args, char *env[]) {
     }
 }
 
+/**
+ * Appends the SHELL_PATH variable into the environment variables.
+ *
+ * return The new array with the appended SHELL_PATH.
+ */
 char **appendShellPathToEnvVar(char* filename, char *env[]) {
     int totalElementSize = sizeof((char**)env);
     totalElementSize += 1;
@@ -139,7 +152,7 @@ char **appendShellPathToEnvVar(char* filename, char *env[]) {
     char *curWorkingDir = get_current_dir_name();
     int lenOfDirName = strlen(curWorkingDir);
     int lenOfFileName = strlen(filename);
-    int totalShellPathLen = lenOfFileName + 11 + 1;
+    int totalShellPathLen = lenOfFileName + strlen(SHELL_PATH) + 1;
     char *shellPathVar = malloc(sizeof(char *) * totalShellPathLen);
     strcpy(shellPathVar, SHELL_PATH);
     strcat(shellPathVar, curWorkingDir);
