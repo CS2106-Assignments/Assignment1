@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <errno.h>
+#include <limits.h>
 
 #define INPUT_BUF_SIZE 1024
 #define TOKEN_BUF_SIZE 64
@@ -149,8 +150,9 @@ char **appendShellPathToEnvVar(char* filename, char *env[]) {
     totalElementSize += 1;
 
     char **newEnv = malloc(sizeof(char *) * totalElementSize);
-    char *curWorkingDir = get_current_dir_name();
-    int lenOfDirName = strlen(curWorkingDir);
+    int lenOfDirName = PATH_MAX + 1;
+    char curWorkingDir[lenOfDirName];
+    getcwd(curWorkingDir,lenOfDirName);
     int lenOfFileName = strlen(filename);
     int totalShellPathLen = lenOfFileName + strlen(SHELL_PATH) + 1;
     char *shellPathVar = malloc(sizeof(char *) * totalShellPathLen);
@@ -170,10 +172,8 @@ char **appendShellPathToEnvVar(char* filename, char *env[]) {
  */
 int launchProgram(char **args, char *env[]) {
     char **newEnv = appendShellPathToEnvVar(args[0], env);
-    if (execvpe(args[0], args, newEnv) == -1) {
+    if (execve(args[0], args, newEnv) == -1) {
         perror(SHELL_ERR_MSG);
-        free(newEnv);
-        newEnv = NULL;
         exit(EXIT_FAILURE);
     }
     free(newEnv);
