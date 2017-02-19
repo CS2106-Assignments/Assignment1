@@ -2,8 +2,8 @@
  * Name: Yeo Xiang Guang Brandon
  * Matric: A0135782Y
  *
- * Name:
- * Matric: 
+ * Name: Ryan Tan Wen Jun
+ * Matric: A0135747X
  */
 #include <stdio.h>
 #include <string.h>
